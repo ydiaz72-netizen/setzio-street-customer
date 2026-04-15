@@ -6,7 +6,10 @@ const supabase = createClient(
   import.meta.env.VITE_SUPABASE_ANON_KEY
 )
 const db = supabase as any
-const TRUCK_SLUG = import.meta.env.VITE_TRUCK_SLUG || 'streetfoodfusion'
+
+// Read slug from URL path /menu/[slug] — falls back to env var or default
+const pathParts = window.location.pathname.split('/').filter(Boolean)
+const TRUCK_SLUG = pathParts[pathParts.length - 1] || import.meta.env.VITE_TRUCK_SLUG || 'streetfoodfusion'
 
 type Truck    = { id: string; name: string; color: string; tax_rate: number }
 type Category = { id: string; name: string; emoji: string; sort_order: number }
@@ -168,7 +171,7 @@ export default function App() {
   const [error, setError]         = useState('')
 
   const load = useCallback(async () => {
-    const { data: t } = await db.from('trucks').select('*').like('slug', `${TRUCK_SLUG}%`).limit(1).single()
+    const { data: t } = await db.from('trucks').select('*').eq('slug', TRUCK_SLUG).limit(1).single()
     if (!t) { setError('not found'); setLoading(false); return }
     setTruck(t)
     const { data: c } = await db.from('menu_categories').select('*').eq('truck_id', t.id).order('sort_order')
