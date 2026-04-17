@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react'
 import { createClient } from '@supabase/supabase-js'
+import TruckFinder from './components/TruckFinder'
 
 const supabase = createClient(
   import.meta.env.VITE_SUPABASE_URL,
@@ -7,9 +8,9 @@ const supabase = createClient(
 )
 const db = supabase as any
 
-// Read slug from URL path /menu/[slug] — falls back to env var or default
+// Read slug from URL path
 const pathParts = window.location.pathname.split('/').filter(Boolean)
-const TRUCK_SLUG = pathParts[pathParts.length - 1] || import.meta.env.VITE_TRUCK_SLUG || 'streetfoodfusion'
+const slugFromURL = pathParts[pathParts.length - 1]
 
 type Truck    = { id: string; name: string; color: string; tax_rate: number }
 type Category = { id: string; name: string; emoji: string; sort_order: number }
@@ -160,6 +161,21 @@ const css = `
 `
 
 export default function App() {
+  // If no slug in URL, show truck finder
+  if (!slugFromURL) {
+    return (
+      <>
+        <style>{css}</style>
+        <TruckFinder />
+      </>
+    )
+  }
+
+  // Otherwise, load menu for this truck slug
+  return <MenuApp truckSlug={slugFromURL} />
+}
+
+function MenuApp({ truckSlug }: { truckSlug: string }) {
   const [screen, setScreen]       = useState<'menu'|'checkout'|'confirm'>('menu')
   const [truck, setTruck]         = useState<Truck | null>(null)
   const [cats, setCats]           = useState<Category[]>([])
@@ -171,7 +187,7 @@ export default function App() {
   const [error, setError]         = useState('')
 
   const load = useCallback(async () => {
-    const { data: t } = await db.from('trucks').select('*').eq('slug', TRUCK_SLUG).limit(1).single()
+    const { data: t } = await db.from('trucks').select('*').eq('slug', truckSlug).limit(1).single()
     if (!t) { setError('not found'); setLoading(false); return }
     setTruck(t)
     const { data: c } = await db.from('menu_categories').select('*').eq('truck_id', t.id).order('sort_order')
@@ -179,7 +195,7 @@ export default function App() {
     const { data: i } = await db.from('menu_items').select('*').eq('truck_id', t.id).order('sort_order')
     setItems(i || [])
     setLoading(false)
-  }, [])
+  }, [truckSlug])
 
   useEffect(() => { load() }, [load])
 
